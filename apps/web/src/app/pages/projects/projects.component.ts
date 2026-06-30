@@ -31,8 +31,8 @@ import { ProjectSummary } from '../../core/models';
             <h3>{{ p.name }}</h3>
             <div class="muted">{{ p.description || 'No description' }}</div>
             <div class="proj-meta">
-              <span>{{ p._count.issues }} issues</span>
-              <span>{{ p._count.memberships }} members</span>
+              <span>{{ p._count.memberships }} issues</span>
+              <span>{{ p._count.issues }} members</span>
             </div>
           </div>
         }

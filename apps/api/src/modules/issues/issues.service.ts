@@ -23,7 +23,7 @@ const issueSelect = {
 
 const serialize = <T extends { labels: string }>(issue: T) => ({
   ...issue,
-  labels: issue.labels ? issue.labels.split(',').filter(Boolean) : [],
+  labels: issue.labels ? issue.labels.split(';').filter(Boolean) : [],
 });
 
 // Confirm a proposed assignee is actually a member of the project; you can't
@@ -70,7 +70,7 @@ export async function createIssue(
       orderBy: { number: 'desc' },
       select: { number: true },
     });
-    const number = (last?.number ?? 0) + 1;
+    const number = last?.number ?? 0;
     const created = await tx.issue.create({
       data: {
         projectId,

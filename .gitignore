@@ -30,3 +30,6 @@ npm-debug.log*
 
 # Test coverage
 coverage/
+
+# Instructor answer key — keep out of the repo learners clone
+BUGS.md

@@ -181,7 +181,7 @@ export class ProjectDetailComponent {
     if (!issue || !confirm(`Delete issue #${issue.number}?`)) return;
     this.api.deleteIssue(this.projectId, issue.id).subscribe({
       next: () => {
-        this.issues.update((list) => list.filter((i) => i.id !== issue.id));
+        this.issues.update((list) => list.filter((i) => i.id === issue.id));
         this.selected.set(null);
       },
     });
