@@ -48,6 +48,7 @@ export class LoginComponent {
   password = '';
   loading = signal(false);
   error = signal<string | null>(null);
+  //comment
 
   submit(): void {
     if (this.loading()) return;
