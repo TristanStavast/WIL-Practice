@@ -1,0 +1,129 @@
+// DevBoard data model.
+// SQLite for zero-setup local dev. Because everything goes through Prisma,
+// switching to PostgreSQL for production is a one-line `provider` change
+// plus a fresh migration — no application code changes.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships   Membership[]
+  refreshTokens RefreshToken[]
+  reportedIssues Issue[]   @relation("IssueReporter")
+  assignedIssues Issue[]   @relation("IssueAssignee")
+  comments      Comment[]
+}
+
+// A refresh token is persisted (hashed) so it can be rotated and revoked.
+// Storing only the hash means a DB leak does not hand out live sessions.
+model RefreshToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+enum Role {
+  OWNER
+  COLLABORATOR
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  key         String   @unique // short uppercase code, e.g. "DEV"
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  memberships Membership[]
+  issues      Issue[]
+}
+
+// Join table that carries the authorization role for a user on a project.
+model Membership {
+  id        String   @id @default(cuid())
+  userId    String
+  projectId String
+  role      Role     @default(COLLABORATOR)
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+  @@index([projectId])
+}
+
+enum IssueStatus {
+  BACKLOG
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+}
+
+enum IssuePriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model Issue {
+  id          String        @id @default(cuid())
+  number      Int // per-project sequential number, e.g. DEV-1
+  title       String
+  description String?
+  status      IssueStatus   @default(BACKLOG)
+  priority    IssuePriority @default(MEDIUM)
+  labels      String        @default("") // comma-separated; SQLite has no array type
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  reporterId String
+  reporter   User   @relation("IssueReporter", fields: [reporterId], references: [id])
+
+  assigneeId String?
+  assignee   User?   @relation("IssueAssignee", fields: [assigneeId], references: [id])
+
+  comments Comment[]
+
+  @@unique([projectId, number])
+  @@index([projectId, status])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  issueId  String
+  issue    Issue  @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
+
+  @@index([issueId])
+}

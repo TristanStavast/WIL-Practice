@@ -1,0 +1,203 @@
+@if (project(); as proj) {
+  <div class="page-head">
+    <div>
+      <span class="proj-key">{{ proj.key }}</span>
+      <h1>{{ proj.name }}</h1>
+      @if (proj.description) { <div class="muted">{{ proj.description }}</div> }
+    </div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn btn-ghost" (click)="openMembers()">Members</button>
+      <button class="btn btn-primary" (click)="openCreate()">+ New issue</button>
+    </div>
+  </div>
+
+  <div class="members" style="margin-bottom:20px;">
+    @for (m of proj.memberships; track m.user.id) {
+      <span class="member-chip">
+        {{ m.user.name }}<span class="member-role">{{ m.role }}</span>
+      </span>
+    }
+  </div>
+}
+
+@if (loading()) {
+  <div class="spinner">Loading board…</div>
+} @else {
+  <div class="board">
+    @for (col of board(); track col.status) {
+      <div class="column">
+        <div class="column-head">
+          <span>{{ col.label }}</span>
+          <span class="column-count">{{ col.issues.length }}</span>
+        </div>
+        <div class="column-body">
+          @for (issue of col.issues; track issue.id) {
+            <div class="issue-card" (click)="openIssue(issue)">
+              <div class="issue-num">
+                {{ project()?.key }}-{{ issue.number }}
+                <span class="prio prio-{{ issue.priority }}" style="float:right">
+                  {{ issue.priority }}
+                </span>
+              </div>
+              <div class="issue-title">{{ issue.title }}</div>
+              <div class="tags">
+                @for (label of issue.labels; track label) {
+                  <span class="tag">{{ label }}</span>
+                }
+                @if (issue.assignee) {
+                  <span class="tag">&#64;{{ issue.assignee.name }}</span>
+                }
+              </div>
+            </div>
+          } @empty {
+            <div class="muted" style="font-size:13px; padding:6px;">—</div>
+          }
+        </div>
+      </div>
+    }
+  </div>
+}
+
+<!-- Create issue modal -->
+@if (showCreate()) {
+  <div class="modal-backdrop" (click)="showCreate.set(false)">
+    <form class="modal" (click)="$event.stopPropagation()" (ngSubmit)="createIssue()">
+      <div class="modal-head">
+        <h2>New issue</h2>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="showCreate.set(false)">✕</button>
+      </div>
+      @if (createError()) { <div class="alert alert-error">{{ createError() }}</div> }
+      <div class="field">
+        <label for="title">Title</label>
+        <input id="title" name="title" class="input" [(ngModel)]="newTitle" required />
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="prio">Priority</label>
+          <select id="prio" name="prio" class="select" [(ngModel)]="newPriority">
+            @for (p of priorities; track p) { <option [value]="p">{{ p }}</option> }
+          </select>
+        </div>
+        <div class="field">
+          <label for="labels">Labels (comma-separated)</label>
+          <input id="labels" name="labels" class="input" [(ngModel)]="newLabels" placeholder="bug, ui" />
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary" [disabled]="saving()">
+        {{ saving() ? 'Creating…' : 'Create issue' }}
+      </button>
+    </form>
+  </div>
+}
+
+<!-- Issue detail modal -->
+@if (selected(); as issue) {
+  <div class="modal-backdrop" (click)="closeIssue()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <div>
+          <div class="issue-num">{{ project()?.key }}-{{ issue.number }}</div>
+          <h2>{{ issue.title }}</h2>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="closeIssue()">✕</button>
+      </div>
+
+      @if (detailError()) { <div class="alert alert-error">{{ detailError() }}</div> }
+
+      <div class="row">
+        <div class="field">
+          <label>Status</label>
+          <select class="select" [ngModel]="issue.status"
+                  (ngModelChange)="onStatusChange($event)">
+            @for (s of statuses; track s) {
+              <option [value]="s">{{ statusLabels[s] }}</option>
+            }
+          </select>
+        </div>
+        <div class="field">
+          <label>Priority</label>
+          <select class="select" [ngModel]="issue.priority"
+                  (ngModelChange)="onPriorityChange($event)">
+            @for (p of priorities; track p) { <option [value]="p">{{ p }}</option> }
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Assignee</label>
+        <select class="select" [ngModel]="issue.assignee?.id ?? ''"
+                (ngModelChange)="onAssigneeChange($event)">
+          <option value="">Unassigned</option>
+          @for (m of project()?.memberships ?? []; track m.user.id) {
+            <option [value]="m.user.id">{{ m.user.name }}</option>
+          }
+        </select>
+      </div>
+
+      @if (issue.labels.length) {
+        <div class="tags" style="margin-bottom:14px;">
+          @for (label of issue.labels; track label) { <span class="tag">{{ label }}</span> }
+        </div>
+      }
+
+      <div class="muted" style="font-size:13px; margin-bottom:18px;">
+        Reported by {{ issue.reporter.name }}
+      </div>
+
+      <h3 style="font-size:15px; margin:0 0 6px;">Comments</h3>
+      <div style="margin-bottom:14px;">
+        @for (c of comments(); track c.id) {
+          <div class="comment">
+            <div class="comment-meta">
+              <span class="comment-author">{{ c.author.name }}</span>
+              · {{ c.createdAt | date: 'short' }}
+            </div>
+            <div>{{ c.body }}</div>
+          </div>
+        } @empty {
+          <div class="muted" style="font-size:13px;">No comments yet.</div>
+        }
+      </div>
+
+      <form (ngSubmit)="addComment()" style="display:flex; gap:8px; margin-bottom:18px;">
+        <input class="input" name="comment" [(ngModel)]="newComment"
+               placeholder="Add a comment…" />
+        <button type="submit" class="btn btn-primary btn-sm">Send</button>
+      </form>
+
+      <button class="btn btn-danger btn-sm" (click)="deleteIssue()">Delete issue</button>
+    </div>
+  </div>
+}
+
+<!-- Members modal -->
+@if (showMembers()) {
+  <div class="modal-backdrop" (click)="showMembers.set(false)">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h2>Members</h2>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="showMembers.set(false)">✕</button>
+      </div>
+
+      <div class="members" style="margin-bottom:18px;">
+        @for (m of project()?.memberships ?? []; track m.user.id) {
+          <span class="member-chip">
+            {{ m.user.name }}<span class="member-role">{{ m.role }}</span>
+          </span>
+        }
+      </div>
+
+      @if (isOwner()) {
+        @if (memberError()) { <div class="alert alert-error">{{ memberError() }}</div> }
+        <form (ngSubmit)="addMember()" style="display:flex; gap:8px;">
+          <input class="input" name="memberEmail" type="email"
+                 [(ngModel)]="memberEmail" placeholder="teammate@email.com" />
+          <button type="submit" class="btn btn-primary btn-sm">Add</button>
+        </form>
+        <small class="muted">They must already have a DevBoard account.</small>
+      } @else {
+        <div class="muted">Only the project owner can add members.</div>
+      }
+    </div>
+  </div>
+}

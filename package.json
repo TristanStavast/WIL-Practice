@@ -1,0 +1,25 @@
+{
+  "name": "devboard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DevBoard — a project & issue tracker. Angular + Fastify + Prisma.",
+  "workspaces": [
+    "apps/api"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "npm run dev --workspace apps/api",
+    "dev:web": "npm --prefix apps/web start",
+    "build:api": "npm run build --workspace apps/api",
+    "build:web": "npm --prefix apps/web run build",
+    "test:api": "npm run test --workspace apps/api",
+    "setup": "npm install && npm --prefix apps/web install && npm run db:setup --workspace apps/api",
+    "db:setup": "npm run db:setup --workspace apps/api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
